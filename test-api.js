@@ -149,6 +149,7 @@ async function run() {
   // 공유 OG 메타 (카톡 미리보기): /?u=ID 에 닉/점수 주입
   let ogr = await raw('/?u=' + B.user.id); let ogt = await ogr.text();
   ok('공유 OG에 닉/점수 주입', ogt.includes('og:title') && ogt.includes('후라이러'));
+  ok('공유 OG 절대경로 이미지', /og:image" content="http[^"]+\/og\.png"/.test(ogt));
 
   // 하루 굽기 횟수 제한 (테스트 limit=5)
   let LP = await j('/api/register', post({ deviceId: 'devLP', nickname: '횟수왕', part: 'pe' }));

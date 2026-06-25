@@ -46,7 +46,21 @@ app.get('/', (req, res) => {
       desc = `${p ? p.label : '-'} 파트 · 계란 후라이 유니버스 — 이 점수 이길 수 있어?`;
     }
   }
-  const og = `\n<meta property="og:title" content="${escAttr(title)}">\n<meta property="og:description" content="${escAttr(desc)}">\n`;
+  // 카톡 등 스크래퍼는 og:image에 절대 URL을 요구 → 요청 호스트 기준으로 절대경로 생성
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+  const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost';
+  const baseUrl = `${proto}://${host}`;
+  const og = [
+    '<meta property="og:type" content="website">',
+    `<meta property="og:url" content="${escAttr(baseUrl + req.originalUrl)}">`,
+    `<meta property="og:title" content="${escAttr(title)}">`,
+    `<meta property="og:description" content="${escAttr(desc)}">`,
+    `<meta property="og:image" content="${escAttr(baseUrl + '/og.png')}">`,
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    '',
+  ].join('\n');
   res.type('html').send(INDEX_HTML.replace('</head>', og + '</head>'));
 });
 

@@ -411,16 +411,27 @@ async function shareScore() {
   if (!STATE.user) { openOnboard(); return; }
   const u = STATE.user;
   const url = location.origin + '/?u=' + u.id;
-  const text = `🍳 ${u.nickname} 님, 최고 ${u.bestScore.toLocaleString()}점! 🔥 (${u.partLabel || '-'} 파트)\n계란 후라이 유니버스 — 나 이길 수 있어? 👇`;
-  if (navigator.share) {
-    try { await navigator.share({ title: '계란 후라이 유니버스', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  const text = `🍳 ${u.nickname} 님, 최고 ${u.bestScore.toLocaleString()}점! 🔥 (${u.partLabel || '-'} 파트)\n계란 후라이 유니버스 — 나 이길 수 있어? 👇\n${url}`;
+  const ok = await copyText(text);
+  toast(ok ? '복사 완료! 카톡에 붙여넣기 하세요 📋' : '복사 실패… 링크를 길게 눌러 복사하세요');
+}
+function copyText(t) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(t).then(() => true).catch(() => legacyCopy(t));
   }
+  return Promise.resolve(legacyCopy(t));
+}
+function legacyCopy(t) {
   try {
-    await navigator.clipboard.writeText(text + '\n' + url);
-    toast('링크가 복사됐어요! 카톡에 붙여넣기 하세요 📋');
-  } catch {
-    prompt('아래 링크를 복사해 공유하세요:', url);
-  }
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    ta.setSelectionRange(0, t.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
 }
 $('#shareBtn').onclick = shareScore;
 if ($('#shareBtn2')) $('#shareBtn2').onclick = shareScore;

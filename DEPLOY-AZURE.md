@@ -248,22 +248,60 @@ sudo systemctl reload nginx
 
 ---
 
-## 8. (선택) 도메인 + HTTPS
+## 8. 무료 도메인(DuckDNS) + 무료 HTTPS(Let's Encrypt)
 
-1. 도메인의 **A 레코드**를 VM 공용 IP로 연결
-   - Azure DNS를 쓰거나, 가비아·Cloudflare 등 외부 등록기관에서 설정
-   - **고정 IP 권장:** 기본 공용 IP가 동적이면 재부팅 시 바뀔 수 있습니다.
-     CLI로 정적 전환:
-     ```bash
-     PIP=$(az network public-ip list -g "$RG" --query "[0].name" -o tsv)
-     az network public-ip update -g "$RG" -n "$PIP" --allocation-method Static
-     ```
-2. certbot으로 무료 SSL:
+도메인을 사거나 외부 DNS를 만질 필요 없이, **DuckDNS 무료 서브도메인**(`yourname.duckdns.org`)을
+VM 공용 IP에 연결하고 **certbot으로 무료 SSL**을 발급합니다.
+
+> 왜 DuckDNS인가: `duckdns.org`는 Public Suffix List에 등재돼 서브도메인별로 Let's Encrypt rate limit이
+> 독립 적용되므로 인증서 발급이 안정적입니다. 반면 Azure 기본 FQDN(`*.cloudapp.azure.com`)은
+> 전체 Azure 고객과 공유하는 낮은 rate limit이라 발급이 거부될 수 있습니다(아래 대안 참고). **[강한 근거]**
+
+### 8-1. DuckDNS 가입 + 서브도메인 만들기 (1분)
+1. https://www.duckdns.org 접속 → Google/GitHub 등으로 로그인
+2. 원하는 서브도메인 입력 → **add domain** (예: `myegg` → `myegg.duckdns.org`)
+3. 화면 상단의 **token** 값을 복사 (UUID 형태)
+
+### 8-2. 도메인을 VM 공용 IP에 연결 + 자동 갱신
+원샷 스크립트(`deploy-azure.sh`)에 `DUCKDNS_DOMAIN`/`DUCKDNS_TOKEN`을 넘기면 이 단계가 자동입니다(9-A 아래).
+수동으로 하려면 VM에서:
+```bash
+DUCKDNS_DOMAIN=myegg     # 서브도메인만
+DUCKDNS_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+mkdir -p ~/duckdns && chmod 700 ~/duckdns
+cat > ~/duckdns/duck.sh <<EOF
+#!/usr/bin/env bash
+curl -fsS "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" -o ~/duckdns/duck.log
+EOF
+chmod 700 ~/duckdns/duck.sh
+~/duckdns/duck.sh && cat ~/duckdns/duck.log   # 응답이 "OK" 면 성공 (ip= 비우면 요청자=이 VM IP로 등록)
+
+# 공용 IP가 바뀌어도 도메인이 따라오도록 5분마다 자동 갱신
+( crontab -l 2>/dev/null | grep -v 'duckdns/duck.sh'; echo "*/5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1" ) | crontab -
+```
+
+### 8-3. 무료 HTTPS 발급 (certbot)
+A 레코드가 전파된 뒤(보통 수십 초):
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d yourdomain.com
+sudo certbot --nginx -d myegg.duckdns.org --agree-tos -m you@example.com --redirect
 ```
-certbot이 Nginx 설정을 자동으로 443 + 리다이렉트로 갱신해 줍니다. 자동 갱신은 기본 설정됩니다.
+certbot이 Nginx 설정을 자동으로 443 + HTTP→HTTPS 리다이렉트로 갱신하고, 90일 인증서 자동 갱신도 설정합니다.
+이제 **https://myegg.duckdns.org** 로 접속됩니다.
+
+> **NSG 확인:** 80/443 인바운드가 열려 있어야 certbot HTTP-01 검증과 접속이 됩니다(2번 참고).
+
+### (대안) 내 도메인 또는 Azure 기본 FQDN
+- **내 도메인이 있으면:** 등록기관에서 A 레코드를 VM 공용 IP로 지정 → `certbot --nginx -d yourdomain.com`.
+  공용 IP가 동적이면 정적으로 전환 권장:
+  ```bash
+  PIP=$(az network public-ip list -g "$RG" --query "[0].name" -o tsv)
+  az network public-ip update -g "$RG" -n "$PIP" --allocation-method Static
+  ```
+- **Azure 기본 FQDN(가입 불필요):** `az network public-ip update -g "$RG" -n "$PIP" --dns-name myegg`
+  → `myegg.<리전>.cloudapp.azure.com`. DNS는 즉시 되지만 **Let's Encrypt 발급은 공유 rate limit으로 거부될 수 있음**.
+  안정적인 인증서가 필요하면 DuckDNS 방식을 권장합니다. **[강한 근거]**
 
 ---
 
@@ -337,7 +375,7 @@ sudo tail -f /var/log/nginx/error.log
 
 - [ ] SSH(22)는 내 IP만 허용 (NSG 규칙)
 - [ ] 3000 포트는 NSG에서 미개방 (Nginx만 외부 노출)
-- [ ] HTTPS 적용(certbot)
+- [ ] 무료 도메인(DuckDNS) 연결 + HTTPS 적용(certbot)
 - [ ] OS 패키지 정기 업데이트 (`sudo apt update && sudo apt upgrade`)
 - [ ] DB 자동 백업 + Azure Blob Storage 보관
 - [ ] (선택) Nginx에 rate limit 추가로 가챠/점수 API 남용 방지
