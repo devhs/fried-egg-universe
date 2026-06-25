@@ -102,11 +102,12 @@ async function run() {
 
   // ---- 섹션 대항전 ----
   let psec = await j('/api/parts/leaderboard');
-  ok('섹션 standings 9파트', Array.isArray(psec.standings) && psec.standings.length === 9, `n=${psec.standings?.length}`);
-  ok('섹션 total 내림차순', psec.standings.every((s, i, a) => i === 0 || a[i - 1].total >= s.total));
+  ok('섹션 standings 8파트(지휘자 제외)', Array.isArray(psec.standings) && psec.standings.length === 8, `n=${psec.standings?.length}`);
+  ok('섹션 평균 내림차순', psec.standings.every((s, i, a) => i === 0 || a[i - 1].avg >= s.avg));
+  ok('섹션에 지휘자(co) 없음', !psec.standings.some(s => s.part === 'co'));
   const vc = psec.standings.find(s => s.part === 'vc');
-  ok('vc 섹션 합산=계란왕1234+후라이러5000', vc.total === 6234 && vc.members === 2, `total=${vc.total},m=${vc.members}`);
-  ok('vc 섹션 top/avg', vc.top === 5000 && vc.avg === 3117);
+  ok('vc 상위5평균=3117, 2명', vc.avg === 3117 && vc.members === 2, `avg=${vc.avg},m=${vc.members}`);
+  ok('vc 섹션 top=5000', vc.top === 5000, `top=${vc.top}`);
 
   // ---- 공유 카드 ----
   let card = await j('/api/u/' + B.user.id);
@@ -162,6 +163,23 @@ async function run() {
   ok('6판째 429 DAILY_LIMIT', over.status === 429 && overb.code === 'DAILY_LIMIT', overb.code);
   let meLP = await j('/api/me/' + lpid);
   ok('me playsLeft=0', meLP.user.playsLeft === 0);
+
+  // 섹션 상위5평균 + 지휘자→타악기 병합 정밀 검증 (미사용 파트 ww 사용)
+  const wwScores = [600, 500, 400, 300, 200, 100];
+  for (let i = 0; i < wwScores.length; i++) {
+    const u = await j('/api/register', post({ deviceId: 'wwsec' + i, nickname: '목관테스트' + i, part: 'ww' }));
+    await j('/api/score', post({ userId: u.user.id, score: wwScores[i] }));
+  }
+  const condU = await j('/api/register', post({ deviceId: 'condsec', nickname: '마에스트로', part: 'co' }));
+  await j('/api/score', post({ userId: condU.user.id, score: 9000 }));
+  let sec2 = await j('/api/parts/leaderboard');
+  ok('섹션 8개(지휘자 폴드인)', sec2.standings.length === 8, `n=${sec2.standings.length}`);
+  const wwS = sec2.standings.find(s => s.part === 'ww');
+  ok('ww 상위5평균=400, 6명', wwS.avg === 400 && wwS.members === 6, `avg=${wwS.avg},m=${wwS.members}`);
+  ok('ww top5n=5 (6번째 제외)', wwS.top5n === 5, `n=${wwS.top5n}`);
+  const peS = sec2.standings.find(s => s.part === 'pe');
+  ok('지휘자(9000)가 타악기에 합산', peS.top === 9000, `peTop=${peS.top}`);
+  ok('타악기 라벨에 지휘 표기', peS.label.includes('지휘'), peS.label);
 
   let nf = await j('/api/score', post({ userId: 'nope', score: 10 }));
   ok('없는 유저 score 404', nf.error === '유저 없음');

@@ -148,13 +148,25 @@ const stmt = {
   lbPart:     db.prepare(`SELECT id, nickname, part, best_score, games_played
                           FROM users WHERE best_score > 0 AND part = ?
                           ORDER BY best_score DESC, updated_at ASC LIMIT ?`),
-  partAgg:    db.prepare(`SELECT part,
-                            COUNT(*)        AS members,
-                            SUM(best_score) AS total,
-                            MAX(best_score) AS top,
-                            AVG(best_score) AS avg
-                          FROM users WHERE best_score > 0 AND part <> ''
-                          GROUP BY part`),
+  // 섹션 대항전: 지휘자(co)는 타악기(pe)에 합산, 순위는 '상위 5명 평균'
+  partAgg:    db.prepare(`
+    WITH ranked AS (
+      SELECT CASE WHEN part = 'co' THEN 'pe' ELSE part END AS sec,
+             best_score,
+             ROW_NUMBER() OVER (
+               PARTITION BY CASE WHEN part = 'co' THEN 'pe' ELSE part END
+               ORDER BY best_score DESC, updated_at ASC
+             ) AS rn
+      FROM users
+      WHERE best_score > 0 AND part <> ''
+    )
+    SELECT sec AS part,
+           COUNT(*)                                  AS members,
+           MAX(best_score)                           AS top,
+           AVG(CASE WHEN rn <= 5 THEN best_score END) AS top5avg,
+           COUNT(CASE WHEN rn <= 5 THEN 1 END)        AS top5n
+    FROM ranked
+    GROUP BY sec`),
   rank:       db.prepare(`SELECT COUNT(*) + 1 AS rank FROM users
                           WHERE best_score > (SELECT best_score FROM users WHERE id = ?)`),
   partRank:   db.prepare(`SELECT COUNT(*) + 1 AS rank FROM users u
@@ -250,8 +262,8 @@ function getLeaderboard(limit = 20, part = null) {
 }
 function getPartStandings() {
   return stmt.partAgg.all().map(r => ({
-    part: r.part, members: r.members, total: r.total,
-    top: r.top, avg: Math.round(r.avg),
+    part: r.part, members: r.members, top: r.top,
+    avg: Math.round(r.top5avg || 0), top5n: r.top5n,
   }));
 }
 function getRank(userId) { return stmt.rank.get(userId).rank; }

@@ -388,19 +388,20 @@ async function loadSection() {
   const { standings } = await api('/parts/leaderboard');
   const list = (standings || []).filter(s => s.members > 0);
   const myPart = STATE.user && STATE.user.part;
-  const max = Math.max(1, ...list.map(s => s.total));
+  const mySec = myPart === 'co' ? 'pe' : myPart; // 지휘자는 타악기 섹션
+  const max = Math.max(1, ...list.map(s => s.avg));
   const el = $('#sectionList');
   if (!list.length) { el.innerHTML = '<p class="tiny muted center">아직 점수를 낸 파트가 없어요.</p>'; return; }
   el.innerHTML = list.map((s, i) => {
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
-    return `<div class="sec-row ${s.part === myPart ? 'mine' : ''}">
-      <div class="sec-fill" style="width:${(s.total / max * 100).toFixed(1)}%;background:${s.color}"></div>
+    return `<div class="sec-row ${s.part === mySec ? 'mine' : ''}">
+      <div class="sec-fill" style="width:${(s.avg / max * 100).toFixed(1)}%;background:${s.color}"></div>
       <div class="sec-top">
         <span class="sec-rank ${i < 3 ? 'top' : ''}">${medal}</span>
         <span class="sec-name">${s.emoji} ${s.label}<small>${s.members}명</small></span>
-        <span class="sec-total">${s.total.toLocaleString()}</span>
+        <span class="sec-total">${s.avg.toLocaleString()}</span>
       </div>
-      <div class="sec-sub">최고 ${s.top.toLocaleString()} · 평균 ${s.avg.toLocaleString()}</div>
+      <div class="sec-sub">상위 ${s.top5n}명 평균 · 최고 ${s.top.toLocaleString()}</div>
     </div>`;
   }).join('');
 }

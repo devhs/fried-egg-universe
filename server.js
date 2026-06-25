@@ -148,14 +148,16 @@ app.get('/api/leaderboard', (req, res) => {
 app.get('/api/parts/leaderboard', (req, res) => {
   const rows = dao.getPartStandings();
   const byId = Object.fromEntries(rows.map(r => [r.part, r]));
-  const standings = PARTS.map(p => {
-    const r = byId[p.id] || { members: 0, total: 0, top: 0, avg: 0 };
+  const sections = PARTS.filter(p => p.id !== 'co'); // 지휘자는 타악기(pe)로 합산
+  const standings = sections.map(p => {
+    const r = byId[p.id] || { members: 0, top: 0, avg: 0, top5n: 0 };
     return {
-      part: p.id, label: p.label, emoji: p.emoji, color: p.color, family: p.family,
-      members: r.members, total: r.total, top: r.top, avg: r.avg,
+      part: p.id, label: p.id === 'pe' ? '타악기·지휘' : p.label,
+      emoji: p.emoji, color: p.color, family: p.family,
+      members: r.members, top: r.top, avg: r.avg, top5n: r.top5n,
     };
-  }).sort((a, b) => b.total - a.total);
-  res.json({ standings });
+  }).sort((a, b) => b.avg - a.avg);
+  res.json({ standings, metric: 'top5avg' });
 });
 
 // 일일 출석 보상
