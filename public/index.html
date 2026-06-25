@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1c1410">
+<title>계란 후라이 유니버스 🍳</title>
+<meta property="og:type" content="website">
+<meta property="og:image" content="/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- 컨페티 오버레이 -->
+<canvas id="confetti"></canvas>
+
+<!-- 온보딩 -->
+<div class="modal" id="onboard">
+  <div class="modal-box">
+    <div class="brandmark"><span class="big-egg">🍳</span></div>
+    <h2 class="brand">계란 후라이 유니버스</h2>
+    <p class="muted tiny">닉네임과 악기 파트를 정하면 점수·도감이 저장돼요.<br>닉네임은 <b>한 번 정하면 바꿀 수 없어요.</b></p>
+    <input id="nickInput" maxlength="12" placeholder="닉네임 (최대 12자)" autocomplete="off" spellcheck="false">
+    <div class="part-label tiny muted">악기 파트 선택</div>
+    <div class="part-pick" id="partPick"></div>
+    <button class="btn primary block lg" id="startBtn">시작하기 🔥</button>
+    <p class="tiny err" id="onboardErr"></p>
+  </div>
+</div>
+
+<!-- 도전장 -->
+<div class="modal" id="challenge">
+  <div class="modal-box">
+    <div class="big-egg">🔥</div>
+    <h2>도전장 도착!</h2>
+    <div id="challengeBody" class="muted"></div>
+    <button class="btn primary block lg" id="acceptBtn">나도 도전하기 🍳</button>
+  </div>
+</div>
+
+<!-- 상단바 -->
+<header class="topbar">
+  <div class="me">
+    <span class="avatar" id="hAvatar">🍳</span>
+    <div>
+      <div class="nick" id="hNick">-</div>
+      <div class="tiny muted sub"><span class="part-tag" id="hPart" style="display:none"></span><span id="hMeta">시작해보세요</span></div>
+    </div>
+  </div>
+  <div class="coins" id="coinPill">🪙 <b id="hCoins">0</b></div>
+</header>
+
+<main>
+  <!-- ===== PLAY ===== -->
+  <section class="page active" id="page-play">
+
+    <!-- 일일 출석 -->
+    <button class="daily-card" id="dailyCard">
+      <div class="daily-l"><span class="daily-ico">🎁</span>
+        <div><div class="daily-t">출석 보상</div><div class="tiny muted" id="dailySub">오늘의 코인을 받으세요</div></div>
+      </div>
+      <span class="daily-cta" id="dailyCta">받기</span>
+    </button>
+
+    <div class="plays-left" id="playsLeftRow">오늘 남은 굽기 <b id="playsLeftNum">10</b> / <span id="playsLimitNum">10</span> 판</div>
+
+    <div class="game-card">
+      <div class="game-head">
+        <div><span class="muted tiny">목표</span><div class="goal" id="goalLabel">탭해서 시작</div></div>
+        <div class="game-stats">
+          <span>❤️ <b id="lives">3</b></span>
+          <span>🔥 <b id="combo">0</b>x</span>
+          <span>⭐ <b id="curScore">0</b></span>
+        </div>
+      </div>
+
+      <div class="pan-zone">
+        <canvas id="pan" width="300" height="300"></canvas>
+        <div class="round-flash" id="flash"></div>
+      </div>
+
+      <div class="timing">
+        <div class="track" id="track">
+          <div class="zone" id="zone"></div>
+          <div class="marker" id="marker"></div>
+        </div>
+        <div class="tiny muted center">초록 구간(완벽한 익힘)에 마커가 올 때 탭!</div>
+      </div>
+
+      <button class="cook-btn" id="cookBtn">탁! 🍳</button>
+    </div>
+
+    <div class="howto card">
+      <b>게임 방법</b>
+      <p class="tiny muted">마커가 좌우로 움직여요. 초록 구간 한가운데에 가까울수록 고득점·콤보가 쌓입니다. 빗나가면 ❤️ 하나. 라운드가 올라갈수록 빨라지고 구간은 좁아져요. 점수는 코인🪙이 되어 도감 뽑기에 쓰여요.</p>
+    </div>
+  </section>
+
+  <!-- ===== 도감 ===== -->
+  <section class="page" id="page-atlas">
+    <div class="atlas-head card">
+      <div class="atlas-top">
+        <div>
+          <b>세계 후라이 도감</b>
+          <div class="tiny muted" id="collCount">0 / 0 수집</div>
+        </div>
+        <button class="btn primary" id="drawBtn">뽑기 🪙<b id="drawCost">50</b></button>
+      </div>
+      <div class="progress"><div class="progress-bar" id="collBar"></div></div>
+      <div class="rarity-legend" id="rarityLegend"></div>
+    </div>
+    <div class="draw-result" id="drawResult"></div>
+    <div class="grid" id="atlasGrid"></div>
+  </section>
+
+  <!-- ===== 랭킹 ===== -->
+  <section class="page" id="page-rank">
+    <div class="card">
+      <div class="rank-head">
+        <div class="seg" id="rankSeg">
+          <button class="on" data-mode="solo">개인전</button>
+          <button data-mode="section">섹션 대항전</button>
+        </div>
+        <button class="btn ghost tiny" id="refreshRank">↻</button>
+      </div>
+
+      <!-- 개인전 -->
+      <div id="soloWrap">
+        <div class="part-filter" id="partFilter"></div>
+        <ol class="ranklist" id="rankList"></ol>
+      </div>
+
+      <!-- 섹션 대항전 -->
+      <div id="sectionWrap" style="display:none">
+        <p class="tiny muted" style="margin:2px 0 12px">파트별 <b>최고점 합산</b> 기준 순위. 우리 파트가 1등 할 수 있게!</p>
+        <div class="section-list" id="sectionList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 정보 ===== -->
+  <section class="page" id="page-info">
+    <div class="card">
+      <b>🔬 후라이의 과학</b>
+      <div class="temp-bar">
+        <span style="left:43%">62–65°C<br>흰자</span>
+        <span style="left:76%">65–70°C<br>노른자</span>
+      </div>
+      <p class="tiny muted">계란을 가열하면 단백질이 풀렸다 다시 단단히 엉깁니다(응고). 흰자는 약 62–65°C, 노른자는 더 높은 65–70°C에서 굳어요. 이 온도 차 덕분에 흰자는 익고 노른자는 흐르는 '반숙'이 가능합니다.</p>
+      <p class="tiny src">출처: <a href="https://www.incredibleegg.org/professionals/manufacturers/real-egg-functionality/coagulation-thickening/" target="_blank" rel="noopener">American Egg Board — Coagulation/Thickening</a></p>
+    </div>
+    <div class="card">
+      <b>ℹ️ 이 서비스</b>
+      <p class="tiny muted">굽기 타이밍 게임으로 점수를 얻고 → 코인으로 → 세계 후라이 도감을 수집하고 → 파트별 리더보드에서 경쟁하세요. 데이터는 닉네임에 연결되어 서버에 저장됩니다.</p>
+      <button class="btn share block" id="shareBtn2">📤 카톡으로 내 점수 공유</button>
+    </div>
+  </section>
+</main>
+
+<!-- 하단 탭 -->
+<nav class="tabbar">
+  <button class="active" data-page="play"><span>🔥</span>굽기</button>
+  <button data-page="atlas"><span>🌍</span>도감</button>
+  <button data-page="rank"><span>🏆</span>랭킹</button>
+  <button data-page="info"><span>🔬</span>정보</button>
+  <div class="tab-ind" id="tabInd"></div>
+</nav>
+
+<!-- 게임오버 -->
+<div class="modal" id="gameover">
+  <div class="modal-box">
+    <div class="big-egg" id="goEmoji">🍳</div>
+    <h2 id="goTitle">게임 종료!</h2>
+    <p class="score-big"><b id="goScore">0</b> 점</p>
+    <p class="muted" id="goReward">+0 🪙</p>
+    <p class="tiny muted" id="goRank"></p>
+    <button class="btn share block" id="shareBtn">📤 내 점수 공유하기</button>
+    <button class="btn primary block lg" id="retryBtn">다시 굽기 🍳</button>
+    <button class="btn ghost block" id="toAtlasBtn">도감 뽑으러 가기 🌍</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

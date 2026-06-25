@@ -1,0 +1,21 @@
+{
+  "name": "fried-egg-universe",
+  "version": "2.0.0",
+  "description": "계란 후라이 유니버스 - 굽기 타이밍 게임 + 수집형 도감 + 리더보드 + 섹션 대항전",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test-api.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.3.0"
+  }
+}
