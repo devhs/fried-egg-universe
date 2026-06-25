@@ -9,7 +9,8 @@
 - 🎨 **수집형 도감(가챠)** — 점수→코인→뽑기로 **21종 수집(악기 파트 9 + 작곡가 12)**. 각 항목은 **귀엽고 플랫한 SVG 일러스트**(바이올린 후라이, 베토벤 후라이 등). 희귀도 4단계, 추첨은 **서버에서**. 도감 진척 바·전설 글로우·**100% 수집 1회성 보너스**.
 - 🏆 **리더보드** — 개인전(전체/파트별) + 🆚 **섹션 대항전**(파트별 최고점 합산/평균/인원).
 - 🎁 **일일 출석 보상** — 하루 1회 코인, 연속 출석 시 보너스 증가(최대 7일).
-- 📤 **점수 공유** — Web Share API(→카카오톡 선택) + 링크 복사. 링크로 들어오면 **도전장** 화면.
+- ⏱ **하루 굽기 제한** — 1인 하루 **10판**(환경변수 조정). 다 쓰면 "내일 다시" 안내, 남은 횟수 표시.
+- 📤 **점수 공유** — Web Share API(→카카오톡 선택) + 링크 복사. 공유 링크는 **카톡 미리보기에 "○○ 님, 최고 N점!"**(서버 OG 메타) + 브랜드 이미지(og.png)로 뜨고, 열면 **도전장** 화면.
 - 🔒 **닉네임 규칙** — 기기당 1개 **고정·변경 불가**, 행사 전체 **중복 금지**(대소문자 무시), **욕설·제어문자 필터**.
 - 🛡 **운영 안정성** — 점수/뽑기 **rate limit**, 보안 헤더(CSP 등), `/api/*` JSON 404, 중앙 에러 핸들러.
 
@@ -38,7 +39,7 @@ npm start        # http://localhost:3000
 ├── parts.js      악기 파트 카탈로그(9)
 ├── public/       index.html · styles.css · app.js (모바일 UI + 게임 엔진 + 컨페티)
 ├── public/eggs/  도감 일러스트 21종 (SVG, 정적 서빙 /eggs/<id>.svg)
-├── test-api.js   통합+단위 테스트(58개)
+├── test-api.js   통합+단위 테스트(63개)
 ├── ecosystem.config.cjs  PM2
 └── DEPLOY.md     EC2 배포 가이드
 ```
@@ -51,14 +52,14 @@ npm start        # http://localhost:3000
 | POST | `/api/register` | `{deviceId,nickname,part}` → 가입/로그인 (409 NICK_TAKEN / 400 BAD_PART·NICK_BANNED·NICK_LONG·NICK_CHARS) |
 | GET  | `/api/me/:id` | 내 상태(유저·도감·전체/파트랭크·today) |
 | GET  | `/api/u/:id` | 공유용 공개 카드 |
-| POST | `/api/score` | `{userId,score}` → best·코인·전체/파트 랭크 |
+| POST | `/api/score` | `{userId,score}` → best·코인·랭크 + `remaining`(남은 굽기). 초과 시 **429 DAILY_LIMIT** |
 | GET  | `/api/leaderboard?part=vc&limit=50` | 개인 랭킹(전체/파트별) |
 | GET  | `/api/parts/leaderboard` | 🆚 섹션 대항전(파트별 합산/평균/최고/인원) |
 | POST | `/api/daily` | `{userId}` → 일일 출석 보상(409 ALREADY) |
 | POST | `/api/draw` | `{userId}` → 코인 차감 후 랜덤 에그 + 100%보너스 체크 |
 
 코인 = `floor(score/10)`(최소 1). 가챠 1회 = `DRAW_COST`(기본 50).
-환경변수: `DRAW_COST`, `DAILY_BASE`(기본 30), `COLL_BONUS`(기본 500), `EVENT_TZ_OFFSET_MIN`(기본 540=KST), `RATE_LIMIT_DISABLED`, `DB_DRIVER`, `BANNED_WORDS`.
+환경변수: `DRAW_COST`, `DAILY_BASE`(기본 30), `COLL_BONUS`(기본 500), `DAILY_PLAY_LIMIT`(기본 10), `EVENT_TZ_OFFSET_MIN`(기본 540=KST), `RATE_LIMIT_DISABLED`, `DB_DRIVER`, `BANNED_WORDS`.
 
 ## DB 스키마 (SQLite)
 - `users(id, nickname, part, device_id UNIQUE, best_score, coins, games_played, last_daily, daily_streak, coll_bonus, ...)` + `UNIQUE INDEX lower(nickname)`
@@ -69,7 +70,7 @@ npm start        # http://localhost:3000
 
 ## 테스트
 ```bash
-npm test           # = node test-api.js  (통합+단위 58개)
+npm test           # = node test-api.js  (통합+단위 63개)
 ```
 > 검증 환경에서 better-sqlite3 네이티브 바이너리를 받을 수 없을 때, `db.js`는 동일 API의
 > `node:sqlite`로 폴백해 **동일 SQL**을 실행합니다. **운영은 better-sqlite3 권장.**

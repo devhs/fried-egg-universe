@@ -7,6 +7,7 @@ for (const f of [DBP, DBP + '-wal', DBP + '-shm']) { try { fs.unlinkSync(f); } c
 process.env.DB_PATH = DBP;
 process.env.PORT = '3999';
 process.env.RATE_LIMIT_DISABLED = '1'; // 기능 테스트에서는 rate limit 비활성 (limiter는 별도 단위테스트)
+process.env.DAILY_PLAY_LIMIT = '5';   // 하루 굽기 제한 테스트용 (운영 기본 10)
 
 const dao = require('./db');
 const { createLimiter, rateLimit } = require('./ratelimit');
@@ -145,6 +146,22 @@ async function run() {
   ok('도감 보너스 1회성(재지급 없음)', bonus2 === null);
 
   // ---- 방어/에러 ----
+  // 공유 OG 메타 (카톡 미리보기): /?u=ID 에 닉/점수 주입
+  let ogr = await raw('/?u=' + B.user.id); let ogt = await ogr.text();
+  ok('공유 OG에 닉/점수 주입', ogt.includes('og:title') && ogt.includes('후라이러'));
+
+  // 하루 굽기 횟수 제한 (테스트 limit=5)
+  let LP = await j('/api/register', post({ deviceId: 'devLP', nickname: '횟수왕', part: 'pe' }));
+  const lpid = LP.user.id;
+  ok('초기 playsLeft=5', LP.user.playsLeft === 5, `pl=${LP.user.playsLeft}`);
+  let rem;
+  for (let i = 1; i <= 5; i++) { const r = await j('/api/score', post({ userId: lpid, score: 100 })); rem = r.remaining; }
+  ok('5판 후 remaining=0', rem === 0, `rem=${rem}`);
+  let over = await raw('/api/score', post({ userId: lpid, score: 100 })); let overb = await over.json();
+  ok('6판째 429 DAILY_LIMIT', over.status === 429 && overb.code === 'DAILY_LIMIT', overb.code);
+  let meLP = await j('/api/me/' + lpid);
+  ok('me playsLeft=0', meLP.user.playsLeft === 0);
+
   let nf = await j('/api/score', post({ userId: 'nope', score: 10 }));
   ok('없는 유저 score 404', nf.error === '유저 없음');
   let big = await j('/api/score', post({ userId: aid, score: 9e12 }));

@@ -143,8 +143,8 @@ async function showChallenge(id) {
   if (c.error) return;
   const col = (STATE.partsById[c.part] || {}).color || '#999';
   $('#challengeBody').innerHTML =
-    `<p><b>${escapeHtml(c.nickname)}</b> <span class="part-tag" style="background:${col}">${c.partEmoji} ${c.partLabel}</span></p>
-     <p class="score-big" style="margin:6px 0"><b>${c.bestScore.toLocaleString()}</b> 점</p>
+    `<p style="font-size:17px"><b>${escapeHtml(c.nickname)}</b> 님 <span class="part-tag" style="background:${col}">${c.partEmoji} ${c.partLabel}</span></p>
+     <p class="score-big" style="margin:4px 0"><b>${c.bestScore.toLocaleString()}</b> 점! 🔥</p>
      <p class="tiny muted">현재 ${c.rank}위 · 도감 ${c.collected}/${c.totalEggs}종 수집<br>이 점수를 이길 수 있나요?</p>`;
   $('#challenge').classList.add('show');
   history.replaceState(null, '', location.pathname);
@@ -411,7 +411,7 @@ async function shareScore() {
   if (!STATE.user) { openOnboard(); return; }
   const u = STATE.user;
   const url = location.origin + '/?u=' + u.id;
-  const text = `🍳 계란 후라이 유니버스\n${u.nickname}(${u.partLabel || '-'}) 최고 ${u.bestScore.toLocaleString()}점!\n나 이길 수 있어? 👇`;
+  const text = `🍳 ${u.nickname} 님, 최고 ${u.bestScore.toLocaleString()}점! 🔥 (${u.partLabel || '-'} 파트)\n계란 후라이 유니버스 — 나 이길 수 있어? 👇`;
   if (navigator.share) {
     try { await navigator.share({ title: '계란 후라이 유니버스', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }

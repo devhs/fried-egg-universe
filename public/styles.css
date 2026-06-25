@@ -108,6 +108,11 @@ main{max-width:540px; margin:0 auto; padding:12px 14px calc(94px + var(--safe-b)
 .daily-card.claimed .daily-cta{background:#cdbfa8}
 .daily-card.claimed::after{display:none}
 
+/* ---- 남은 굽기 횟수 ---- */
+.plays-left{text-align:center; font-size:13px; font-weight:700; color:var(--muted); margin:-2px 0 12px}
+.plays-left b{color:var(--accent); font-variant-numeric:tabular-nums}
+.plays-left.empty, .plays-left.empty b{color:var(--bad)}
+
 /* ---- 게임 카드 ---- */
 .game-card{background:linear-gradient(180deg,#fff,#fffaf0); border:1px solid var(--line); border-radius:22px;
   padding:18px; margin-bottom:14px; box-shadow:var(--shadow)}
